@@ -1,0 +1,54 @@
+<aura:component controller="ShowTasks" implements="flexipage:availableForAllPageTypes">
+    <ltng:require scripts="/resource/Jquery,/resource/D3JS,/resource/C3JS,/resource/DataTableJs"  styles="/resource/C3CSS, /resource/DataTableCSS" afterScriptsLoaded="{!c.handleClick}" />
+	
+    <aura:attribute name="taskRecords" type="Integer[]"/>
+    <aura:attribute name="UserId" type="Id" />
+    <aura:attribute name="taskStatus" type="String" />
+    
+    <aura:attribute name="UserName" type="String" />
+    <aura:attribute name="MonthNo" type="Integer" />
+    <aura:attribute name="day" type="Integer" />
+    <aura:attribute name="tasks" type="Task[]" />
+    
+    <aura:attribute name="Roles" type="String" />
+    
+    <!--  -->
+    <input type="button" id="click2"  onclick="{!c.getDayTask}" style="display:none;"/>
+    
+    <!-- Event for calling controller method -->
+    <aura:registerEvent name="C3JSComponentEvent" type="c:C3JSevent"/>
+    <aura:handler name="C3JSComponentEvent" action="{!c.getMonthTask}"/>
+    
+    <aura:registerEvent name="C3JSComponentEvent2" type="c:C3JSevent"/>
+    <aura:handler name="C3JSComponentEvent2" action="{!c.getDayTask}"/>
+    
+    <div id="div"  style="visibility: hidden;">
+            <ui:button label="Back1" press="{!c.handleClick}" />
+        	<ui:button label="Back2" press="{!c.getMonthTask}" />
+        <p style="float: right; margin:10px;"> {!v.UserName}</p> 
+    </div>
+    <div style="padding-right:20px;" >
+    	<div id="chart" ></div>
+    </div>
+    <br/><br/><br/>
+    <div style="overflow-x: auto;" id="tableDiv">
+        <table id="table" class="display" cellspacing="0" >
+            <thead>
+                <tr>
+                    <th> <strong> Task Subject (Status) </strong> </th>
+                  
+                </tr>
+            </thead>
+            <tbody>
+                <aura:iteration var="item" items="{!v.tasks}">
+                    <tr>
+                        <td><span>
+                            <!--<a href="javascript:void(0);" onclick="{!c.navigateToSObject}">
+                                {!item.Subject}({!item.Status})</a>--> </span></td>
+                    </tr>
+                </aura:iteration>
+            </tbody>
+        </table>
+        
+    </div>
+</aura:component>

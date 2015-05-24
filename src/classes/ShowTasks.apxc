@@ -1,0 +1,204 @@
+public class ShowTasks 
+{
+	public static Boolean getFieldAccessibility() 
+    { 
+        String [] taskFieldsToCheck = new String [] {'ActivityDate','Status','Subject','ownerId'};
+        Map<String,Schema.SObjectField> mapTaskFields = Schema.SObjectType.Task.fields.getMap();    
+        for (String fieldToCheck : taskFieldsToCheck) 
+        {
+              if (!mapTaskFields.get(fieldToCheck).getDescribe().isAccessible()) 
+              {
+                return false;
+              }
+        }   
+        return true;       
+    }
+    
+    public static map<String, map<Integer, List<Task>>> getTask()
+    {
+       map<String, map<Integer, List<Task>>> mapTomapTolist = new map<String, map<Integer, List<Task>>>();
+       for(Task objTask:[SELECT ActivityDate, Status, Owner.Name, Subject
+                         from Task 
+                         WHERE /*ownerId =: parentId AND*/ 
+                         	ActivityDate !=null
+                         order by ActivityDate,Owner.Name])
+       {
+           map<Integer, List<Task>> mapMonthToListTask = new map<Integer, List<Task>>();
+           mapMonthToListTask.put(objTask.ActivityDate.Month(), new List<Task>{objTask});           
+           if(!mapTomapTolist.containskey(objTask.Owner.Name))
+           {
+               mapTomapTolist.put(objTask.Owner.Name, mapMonthToListTask);
+           }
+           else
+           {
+               if(mapTomapTolist.get(objTask.Owner.Name).containskey(objTask.ActivityDate.Month()))
+               {
+                   mapTomapTolist.get(objTask.Owner.Name).get(objTask.ActivityDate.Month()).add(objTask);
+               }
+               else
+               {
+                   mapTomapTolist.get(objTask.Owner.Name).put(objTask.ActivityDate.Month(), new List<Task>{objTask});
+               }
+           }
+       }
+       return mapTomapTolist;
+    }
+    @AuraEnabled
+    public static map<String, list<Integer>> fetchAllTasks(string strRoles)
+    {
+       system.debug('--strRoles--' + strRoles);
+       map<String, map<Integer, List<Task>>> mapTomapTolist = getTask();
+       map<String, list<Integer>> maplst = new map<string,list<integer>>();
+       for(String strName :mapTomapTolist.keySet())
+       {
+           map<Integer, List<Task>> mapMonthToListTask = mapTomapTolist.get(strName);
+           List<Integer> lstIntegerTemp = new List<Integer>();
+           for(Integer i = 1; i <= 12 ; i++)
+           {
+               if(!mapMonthToListTask.containsKey(i))
+                   lstIntegerTemp.add(0);
+                else
+                    lstIntegerTemp.add(mapMonthToListTask.get(i).size());
+            }
+           maplst.put(strName,lstIntegerTemp);
+       }
+        return maplst;
+    }
+    
+    @AuraEnabled
+    public static map<String, List<Integer>> fetchMonthTasks(String strName, Integer intMonth)
+    { 
+        system.debug('=======xxxxx=======strName========='+strName);
+        system.debug('=======xxxxx=======intMonth========='+intMonth);
+        
+        map<String, map<Integer, List<Task>>> mapTomapTolist1 = getTask();
+        map<Integer, List<Task>> mapMonthToListTask = new map<Integer, List<Task>>();
+        map<String, List<Integer>> mapStatusToNoOfTask = new map<String, List<Integer>>();
+        for(Task objTask : mapTomapTolist1.get(strName).get(integer.valueof(intMonth)))
+        {
+            if(!mapMonthToListTask.containsKey(objTask.ActivityDate.Day()))
+            {
+                mapMonthToListTask.put(objTask.ActivityDate.Day(), new list<Task>{objTask});
+            }
+            else
+            {
+                mapMonthToListTask.get(objTask.ActivityDate.Day()).add(objTask);
+            }
+        }
+        Integer numberDays = date.daysInMonth(2015, integer.valueof(intMonth));
+        for(Integer i = 1; i<= numberDays ; i++)
+        {
+            if(mapMonthToListTask.containsKey(i))
+            {
+                Integer ii = 0;
+               for(Task objTask :mapMonthToListTask.get(i) )
+               { 
+                   ii++;
+                   if(objTask.status != 'Completed')
+                   {
+                       if(!mapStatusToNoOfTask.containsKey('Open'))
+                           mapStatusToNoOfTask.put('Open', new List<Integer>{1});
+                       else
+                       {
+                           if(ii==1)
+                           {
+                               mapStatusToNoOfTask.get('Open').add(ii);
+                           }
+                           else
+                           {
+                               List<Integer> lstInteger = mapStatusToNoOfTask.get('Open');
+                               lstInteger[i-1] +=1; 
+                               mapStatusToNoOfTask.put('Open',lstInteger);
+                           }
+                       }
+                           
+                   }
+                   else
+                   {
+                        if(!mapStatusToNoOfTask.containsKey('Open'))
+                           mapStatusToNoOfTask.put('Open', new List<Integer>{0});
+                       else
+                           mapStatusToNoOfTask.get('Open').add(0);
+                   }
+                   
+                   if(objTask.status == 'Completed')
+                   {
+                       if(!mapStatusToNoOfTask.containsKey('Completed'))
+                           mapStatusToNoOfTask.put('Completed', new List<Integer>{1});
+                       else
+                       {
+                           if(ii==1)
+                           {
+                               mapStatusToNoOfTask.get('Completed').add(ii);
+                           }
+                           else
+                           {
+                               List<Integer> lstInteger = mapStatusToNoOfTask.get('Completed');
+                               lstInteger[i-1] +=1; 
+                               mapStatusToNoOfTask.put('Completed',lstInteger);
+                           }
+                       }
+                   }
+                   else
+                   {
+                        if(!mapStatusToNoOfTask.containsKey('Completed'))
+                           mapStatusToNoOfTask.put('Completed', new List<Integer>{0});
+                       else
+                           mapStatusToNoOfTask.get('Completed').add(0);
+                   }
+                   
+               }
+            }
+            else
+            {
+                if(mapStatusToNoOfTask.containsKey('Completed'))
+                    mapStatusToNoOfTask.get('Completed').add(0);
+                else
+                    mapStatusToNoOfTask.put('Completed', new List<Integer>{0});
+                
+                if(mapStatusToNoOfTask.containsKey('Open'))
+                    mapStatusToNoOfTask.get('Open').add(0);
+                else
+                    mapStatusToNoOfTask.put('Open', new List<Integer>{0});
+            }
+        }
+        system.debug('=======xxxxx=======mapStatusToNoOfTask========='+mapStatusToNoOfTask);
+        
+        
+        return mapStatusToNoOfTask;
+    }
+    
+    @AuraEnabled
+    public static list<Task> fetchDayTasks(String strName, String strStatus, Integer intMonth, Integer intDay)
+    {
+        list<Task> lstTask = new list<Task>();
+        map<String, map<Integer, List<Task>>> mapTomapOflist = getTask();
+        
+        system.debug('---strName---' + strName);
+        system.debug('---strStatus---' + strStatus);
+        system.debug('---intMonth---' + intMonth);
+        system.debug('---intDay---' + intDay);
+        
+        for(Task objTask : mapTomapOflist.get(strName).get(integer.valueof(intMonth)))
+        {
+            if(strStatus == 'Open')
+			{    
+                if(objTask.ActivityDate.Day() == integer.valueof(intDay)
+                   && objTask.Status != 'Completed' )    
+				{
+                    lstTask.add(objTask);
+                }
+            }
+            else
+			{
+				if(objTask.ActivityDate.Day() == integer.valueof(intDay)
+                   && objTask.Status == 'Completed' )    
+				{
+                    lstTask.add(objTask);
+                }
+			}
+        }
+        system.debug('==========xxx======lstTask====='+lstTask);
+        return lstTask;
+    }
+}
